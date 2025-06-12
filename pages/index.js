@@ -1,115 +1,191 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import Notification from '@/components/Notifications/notifications';
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from 'next/router';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationType, setNotificationType] = useState('success');
+  const [notificationMessage, setNotificationMessage] = useState('N/a');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log('Email:', email);
+    console.log('Password:', password);
 
-export default function Home() {
+    if ( email !== "admin@rosnep.org") {
+      setLoading(false);
+      setNotificationMessage('This platform is strictly for admin only!');
+      setNotificationType("warning");
+      setShowNotification(true);
+    
+      setTimeout(() => {
+        setShowNotification(false);
+      }, 5000);
+
+      return;
+    }
+    
+    setLoading(true);
+    
+
+    try {
+      // Sign in with Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('Logged in user:', user);
+      router.push('/dashboard');
+      
+    } catch (error) {
+      console.error('Error logging in:', error.code, error.message);
+    
+      let message = 'Login failed. Please try again.';
+    
+      switch (error.code) {
+        case 'auth/invalid-credential':
+          message = 'Invalid email or password. Please check your credentials and try again.';
+          break;
+        case 'auth/user-not-found':
+          message = 'No account found with this email.';
+          break;
+        case 'auth/wrong-password':
+          message = 'Incorrect password. Please try again.';
+          break;
+        case 'auth/invalid-email':
+          message = 'Invalid email address.';
+          break;
+        case 'auth/user-disabled':
+          message = 'This user account has been disabled.';
+          break;
+        case 'auth/too-many-requests':
+          message = 'Too many login attempts. Please try again later.';
+          break;
+        default:
+          message = `Login failed: ${error.message}`;
+      }
+    
+      setLoading(false);
+      setNotificationMessage(message);
+      setNotificationType("error");
+      setShowNotification(true);
+    
+      setTimeout(() => {
+        setShowNotification(false);
+      }, 5000);
+    }
+    
+  };
+
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              pages/index.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <>
+      <div className="relative w-full min-h-screen bg-cover bg-center" style={{ backgroundImage: `url('/login-bg.jpg')` }}>
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm lg:backdrop-blur-0"></div>
+
+        <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
+          <div className="w-full max-w-5xl rounded-md grid grid-cols-1 lg:grid-cols-5 bg-white lg:bg-transparent bg-opacity-90 backdrop-blur-md overflow-hidden shadow-2xl">
+
+            {/* Left Side */}
+            <div className="hidden lg:block lg:col-span-3 bg-blue-950 text-white p-10">
+              <h2 className="text-3xl font-bold mb-4 font-garamond">Welcome Back Admin</h2>
+              <p className="text-sm mb-6 text-gray-300 font-barlow">
+                Access your dashboard to manage users, review investments, update content, and keep the platform running smoothly and securely.
+              </p>
+
+              <div className="mt-auto pt-10 text-sm font-barlow">
+                <p className="text-gray-400">Need help?</p>
+                <Link href="mailto:support@rosnep.com" className="text-blue-300 hover:text-white">
+                  support@rosnep.com
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Side */}
+            <div className="col-span-2 p-8 sm:p-10 relative font-barlow bg-white/70 backdrop-blur-md lg:bg-white lg:backdrop-blur-0">
+
+              <div className="relative z-10">
+                <div className="mb-6 text-center">
+                  <Link href={'/'}>
+                    <Image src={'/logo-1.png'} height={500} width={500} alt='logo image' className="w-32 lg:w-44 h-8 lg:h-10 mb-4 mx-auto" />
+                  </Link>
+                  <h3 className="text-base md:text-xl font-semibold text-gray-800">Login To Your Admin Dashboard</h3>
+                </div>
+
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <div className="text-right mt-2">
+                      <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="text-sm lg:text-base w-full flex justify-center items-center bg-blue-600 text-white font-medium py-2 hover:bg-blue-700 transition"
+                  >
+                      {loading ? (
+                        <div className="border-2 border-gray-200 border-t-2 border-t-transparent rounded-full w-6 h-6 spinner"></div>
+                      ) : (
+                        <div className="text-white text-center h-6">Log In</div>
+                      )}
+                  </button>
+                </form>
+
+                <p className="text-sm text-center text-gray-600 mt-4">
+                  Don&apos;t have an account?{' '}
+                  <Link href="/auth/signup" className="text-blue-600 font-medium hover:underline">
+                    Sign up
+                  </Link>
+                </p>
+
+                <p className="text-xs text-center text-gray-500 mt-6">
+                  &copy; {new Date().getFullYear()} Rosenp. All rights reserved.
+                </p>
+              </div>
+            </div>
+
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        {showNotification && (
+          <Notification
+            type={notificationType}
+            message={notificationMessage}
+            onClose={() => setShowNotification(false)}
+            show={true}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        )}
+
+      </div>
+    </>
   );
 }
