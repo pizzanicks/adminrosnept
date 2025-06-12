@@ -20,7 +20,7 @@ export default function LoginPage() {
     console.log('Email:', email);
     console.log('Password:', password);
 
-    if ( email !== "admin@rosnep.org") {
+    if ( email !== "admin@rosnept.com") {
       setLoading(false);
       setNotificationMessage('This platform is strictly for admin only!');
       setNotificationType("warning");
