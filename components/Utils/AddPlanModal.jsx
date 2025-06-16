@@ -1,26 +1,39 @@
-// pages/Utils/EditPlanModal.js
-import React, { useState, useEffect } from "react";
+// pages/Utils/AddPlanModal.js
+import React, { useState } from "react";
 import PlanFormFields from "./PlansFormField";
 
-const EditPlanModal = ({ plan, onSubmit, onClose }) => {
-  // Initialize formData with the provided plan (always present for editing)
-  const [formData, setFormData] = useState(plan);
+const AddPlanModal = ({ onSubmit, onClose }) => {
+  // Initialize formData with a complete default structure for a new plan
+  const [formData, setFormData] = useState({
+    plan: "",
+    subTitle: "",
+    description: "",
+    price: "",
+    roi: "",
+    highlights: ["", ""], // Start with a couple of empty highlight fields
+    points: [
+      { text: "", enabled: true }, // Start with a couple of empty point fields
+      { text: "", enabled: true },
+    ],
+    cta: "Get Started", // Default CTA
+    enabled: true, // Default to enabled
+    barColor: "bg-gray-500", // Default color
+    buttonStyle: "bg-blue-600 text-white hover:bg-blue-700 transition", // Default style
+    min: 0,
+    max: 0,
+  });
 
-  // Update formData when the 'plan' prop changes (e.g., when editing a different plan)
-  useEffect(() => {
-    setFormData(plan);
-  }, [plan]);
-
-  const handleSubmit = async () => {
-
-    const cleanedFormData = {
-      ...formData,
-      highlights: formData.highlights.filter((h) => h.trim() !== ""),
-      points: formData.points.filter((p) => p.text.trim() !== ""),
-    };
+    const handleSubmit = async () => {
+      
+        const cleanedFormData = {
+        ...formData,
+        highlights: formData.highlights.filter((h) => h.trim() !== ""),
+        points: formData.points.filter((p) => p.text.trim() !== ""),
+        };
+      console.log("data:", cleanedFormData);
       
       try {
-          const response = await fetch("/api/plans/editPlan", {
+          const response = await fetch("/api/plans/addNewPlan", {
               method: "POST",
               headers: {
                   "Content-Type": "application/json",
@@ -38,8 +51,8 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
       } catch (err) {
           console.log("err:", err);
       }
-    
-    onSubmit(cleanedFormData);
+        
+        onSubmit(cleanedFormData);
   };
 
   const handleFormChange = (updatedPlanData) => {
@@ -51,7 +64,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
       <div className="relative p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white">
         <div className="flex justify-between items-center pb-3">
           <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Edit Investment Plan
+            Add New Investment Plan
           </h3>
           <button
             onClick={onClose}
@@ -67,7 +80,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
           <PlanFormFields
             plan={formData}
             onChange={handleFormChange}
-            isNewPlan={false}
+            isNewPlan={true}
           />
         </form>
 
@@ -84,7 +97,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
             onClick={handleSubmit}
             className="w-[50%] px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Update Plan
+            Add Plan
           </button>
         </div>
       </div>
@@ -92,4 +105,4 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
   );
 };
 
-export default EditPlanModal;
+export default AddPlanModal;
