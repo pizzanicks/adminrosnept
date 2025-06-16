@@ -18,10 +18,11 @@ const menuItems = [
   { icon: <FaArrowCircleUp />, label: 'Withdrawal Requests', path: '/dashboard/withdrawalrequest' },
   { icon: <FaMoneyCheckAlt />, label: 'Transactions', path: '/dashboard/transactions' },
   { icon: <FaHandHoldingUsd />, label: 'Investments', path: '/dashboard/investments' },
+  { icon: <FaHandHoldingUsd />, label: 'Investment Plans', path: '/dashboard/plans'},
   { icon: <FaIdCard />, label: 'KYC Requests', path: '/dashboard/kycrequests' },
   { icon: <FaCog />, label: 'Account Settings', path: '/dashboard/settings' },
   { icon: <FaHeadset />, label: 'Support Tickets', path: '/dashboard/support' },
-];
+]
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -108,7 +109,7 @@ const DashboardLayout = ({ children }) => {
               <div>
                 <div className="text-base font-medium">Administrator</div>
                 <div className="text-sm text-blue-300">
-                  admin@rosnep.com
+                  admin@deltaneutral.com
                 </div>
               </div>
             </div>
@@ -194,7 +195,7 @@ const DashboardLayout = ({ children }) => {
                 <div>
                   <div className="font-semibold">Administrator</div>
                   <div className="text-sm text-gray-500">
-                    admin@rosnep.org
+                    admin@deltaneutral.org
                   </div>
                 </div>
               </div>
