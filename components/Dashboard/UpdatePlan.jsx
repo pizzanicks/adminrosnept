@@ -4,6 +4,7 @@ import { FaPlus } from "react-icons/fa"; // "+" icon for the Add button
 import EditPlanModal from "../Utils/EditPlanModal"; // Import EditPlanModal
 import AddPlanModal from "../Utils/AddPlanModal"; // Import AddPlanModal
 import { useFirebase } from "@/lib/firebaseContext";
+import Notification from "../Notifications/notifications";
 
 const InvestmentPlans = () => {
   const [showEditModal, setShowEditModal] = useState(false); // State for Edit modal
@@ -27,6 +28,12 @@ const InvestmentPlans = () => {
     // WORK HERRRRRRRREEEEE
     alert("Plan updated successfully (local):", updatedPlan.plan_id);
     setShowEditModal(false);
+    <Notification
+          type={notificationType}
+          message={notificationMessage}
+          onClose={() => setShowNotification(false)}
+          show={true}
+        />
   };
 
   // Handle adding a new plan to local state
@@ -36,6 +43,12 @@ const InvestmentPlans = () => {
       "New plan added (local) with temporary ID:",
       // newPlanWithId.plan_id
     );
+    <Notification
+          type={notificationType}
+          message={notificationMessage}
+          onClose={() => setShowNotification(false)}
+          show={true}
+        />
     // setShowAddModal(false); // Close add modal after adding
   };
 
