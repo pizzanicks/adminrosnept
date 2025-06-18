@@ -9,11 +9,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getAuth, signOut } from "firebase/auth";
+import { FaUsers } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 
 const menuItems = [
   { icon: <FaTachometerAlt />, label: 'Admin Overview', path: '/dashboard' },
   { icon: <FaUserFriends />, label: 'Manage Users', path: '/dashboard/users' },
+  { icon: <FaUsers />, label: 'Users', path: '/dashboard/users' },
   { icon: <FaArrowCircleDown />, label: 'Deposit Requests', path: '/dashboard/depositrequest' },
   { icon: <FaArrowCircleUp />, label: 'Withdrawal Requests', path: '/dashboard/withdrawalrequest' },
   { icon: <FaMoneyCheckAlt />, label: 'Transactions', path: '/dashboard/transactions' },
