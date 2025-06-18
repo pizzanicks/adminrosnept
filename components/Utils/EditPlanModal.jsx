@@ -11,35 +11,42 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
     setFormData(plan);
   }, [plan]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => { // Added 'e' parameter to receive event
+    e.preventDefault(); // Prevent default form submission behavior
 
     const cleanedFormData = {
       ...formData,
       highlights: formData.highlights.filter((h) => h.trim() !== ""),
       points: formData.points.filter((p) => p.text.trim() !== ""),
     };
-      
-      try {
-          const response = await fetch("/api/plans/editPlan", {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                cleanedFormData
-              }),
-          });
 
-          if (!response.ok) {
-              console.log("error adding new plan:");
-          }
-          console.log("Plan added successfully!");
-          
-      } catch (err) {
-          console.log("err:", err);
+    try {
+      const response = await fetch("/api/plans/editPlan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cleanedFormData), // Send cleanedFormData directly
+      });
+
+      if (!response.ok) {
+        // Log the actual response status and text for better debugging
+        console.error("Error editing plan:", response.status, response.statusText);
+        // Consider throwing an error or setting a state for user notification
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    
-    onSubmit(cleanedFormData);
+
+      console.log("Plan updated successfully!"); // Changed "added" to "updated"
+      // Optionally, get response data if your API returns something useful
+      // const result = await response.json();
+      // console.log(result);
+
+      onSubmit(cleanedFormData); // Call the onSubmit prop only after successful API call
+      onClose(); // Close the modal after successful submission
+    } catch (err) {
+      console.error("Error submitting plan edit:", err); // More descriptive error message
+      // You might want to show a notification to the user here
+    }
   };
 
   const handleFormChange = (updatedPlanData) => {
@@ -61,7 +68,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
           </button>
         </div>
         <form
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit} // Form's onSubmit will now call handleSubmit
           className="mt-4 max-h-[65vh] md:max-h-[65vh] overflow-y-auto pr-2"
         >
           <PlanFormFields
@@ -69,27 +76,26 @@ const EditPlanModal = ({ plan, onSubmit, onClose }) => {
             onChange={handleFormChange}
             isNewPlan={false}
           />
+          {/* Moved submit buttons inside the form so that type="submit" works naturally */}
+          <div className="w-full mt-6 flex justify-end space-x-2 lg:space-x-3">
+            <button
+              type="button" // Use type="button" for cancel to prevent form submission
+              onClick={onClose}
+              className="w-[50%] px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit" // This button will now trigger the form's onSubmit
+              className="w-[50%] px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Update Plan
+            </button>
+          </div>
         </form>
-
-        <div className="w-full mt-6 flex justify-end space-x-2 lg:space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-[50%] px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            className="w-[50%] px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Update Plan
-          </button>
-        </div>
       </div>
     </div>
   );
 };
 
-export default EditPlanModal;
+export default EditPlanModal; // Resolved to the correct export

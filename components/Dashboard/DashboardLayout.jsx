@@ -9,13 +9,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getAuth, signOut } from "firebase/auth";
-import { FaUsers } from 'react-icons/fa';
+// Removed duplicate FaUsers import, it was already there.
 import { useRouter } from 'next/router';
 
 const menuItems = [
   { icon: <FaTachometerAlt />, label: 'Admin Overview', path: '/dashboard' },
-  { icon: <FaUserFriends />, label: 'Manage Users', path: '/dashboard/users' },
-  { icon: <FaUsers />, label: 'Users', path: '/dashboard/users' },
+  { icon: <FaUserFriends />, label: 'Manage Users', path: '/dashboard/users' }, // This links to the users list page (index.js)
+  { icon: <FiUser />, label: 'Users', path: '/dashboard/profile' }, // This links to the Admin's own profile page
   { icon: <FaArrowCircleDown />, label: 'Deposit Requests', path: '/dashboard/depositrequest' },
   { icon: <FaArrowCircleUp />, label: 'Withdrawal Requests', path: '/dashboard/withdrawalrequest' },
   { icon: <FaMoneyCheckAlt />, label: 'Transactions', path: '/dashboard/transactions' },
@@ -56,7 +56,7 @@ const DashboardLayout = ({ children }) => {
 
   const handleLogout = async () => {
     const auth = getAuth();
-  
+
     try {
       await signOut(auth);
       console.log("User logged out successfully");
@@ -122,10 +122,11 @@ const DashboardLayout = ({ children }) => {
                   const isActive = pathname === item.path;
 
                   return (
+                    // Link usage is reverted to your original style
                     <Link
                       key={i}
                       href={item.path}
-                      className={`flex items-center space-x-3 p-2 rounded cursor-pointer text-sm 
+                      className={`flex items-center space-x-3 p-2 rounded cursor-pointer text-sm
                         ${
                           isActive
                             ? "bg-[#1f306d] text-gray-100 font-medium"
@@ -203,6 +204,7 @@ const DashboardLayout = ({ children }) => {
               </div>
               <ul className="space-y-2 text-sm">
                 <li>
+                  {/* This link remains to manage all users */}
                   <Link
                     href="/dashboard/users"
                     className="flex items-center space-x-2 hover:bg-gray-100 p-2 rounded cursor-pointer"
@@ -230,8 +232,9 @@ const DashboardLayout = ({ children }) => {
                   </Link>
                 </li>
                 <li>
+                  {/* This path was corrected to match the sidebar's kycrequests previously */}
                   <Link
-                    href="/dashboard/kyc-requests"
+                    href="/dashboard/kycrequests"
                     className="flex items-center space-x-2 hover:bg-gray-100 p-2 rounded cursor-pointer"
                   >
                     <FaIdCard />
