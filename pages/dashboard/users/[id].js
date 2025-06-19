@@ -1,39 +1,57 @@
-// pages/dashboard/users/[id].js
+'use client';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import DashboardLayout from '@/components/Dashboard/DashboardLayout'; // Assuming this path is correct
-import UserDetailsContent from '../../../components/Dashboard/UserDetailsContent'; // <--- CORRECTED PATH HERE
+import { doc, getDoc } from 'firebase/firestore';
+import db from '../../../lib/firebase';
+import DashboardLayout from '../../../components/Dashboard/DashboardLayout';
+import UserDetailsContent from '../../../components/Dashboard/UserDetailsContent';
 
-/**
- * UserDetailsPage is a Next.js dynamic page for displaying individual user details.
- * It extracts the user ID from the URL and passes it to the UserDetailsContent component.
- */
 export default function UserDetailsPage() {
-    const router = useRouter();
-    // Destructure 'id' from router.query. This 'id' corresponds to the '[id]' in the file name.
-    const { id } = router.query;
+  const router = useRouter();
+  const { id } = router.query;
 
-    // Show a basic loading state while the ID is being resolved
-    if (!id) {
-        return (
-            <DashboardLayout>
-                <div className="flex items-center justify-center h-screen text-gray-500">
-                    Loading user details...
-                </div>
-            </DashboardLayout>
-        );
-    }
+  const [isLoading, setIsLoading] = useState(true);
+  const [userExists, setUserExists] = useState(null);
 
-    return (
-        <DashboardLayout>
-            {/* The "Back to Users" button belongs here as useRouter is available in the Page component */}
-            <button
-                onClick={() => router.back()}
-                className="text-sm text-blue-600 hover:underline p-4" // Added some padding for better click area
-            >
-                ← Back to Users
-            </button>
-            {/* Render the UserDetailsContent component, passing the extracted ID as a prop */}
-            <UserDetailsContent userId={id} />
-        </DashboardLayout>
-    );
+  useEffect(() => {
+    const checkUserExists = async () => {
+      if (!id) return;
+
+      try {
+        const userRef = doc(db, 'users', id);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setUserExists(true);
+        } else {
+          setUserExists(false);
+        }
+      } catch (err) {
+        console.error('Error checking user existence:', err);
+        setUserExists(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkUserExists();
+  }, [id]);
+
+  return (
+    <DashboardLayout>
+      <div className="p-6 min-h-[300px]">
+        {isLoading && <p>Loading user details...</p>}
+
+        {!isLoading && userExists && (
+          <UserDetailsContent userId={id} />
+        )}
+
+        {!isLoading && userExists === false && (
+          <div className="text-red-600 font-semibold">
+            ❌ User not found. Please check the URL or return to the users list.
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
 }

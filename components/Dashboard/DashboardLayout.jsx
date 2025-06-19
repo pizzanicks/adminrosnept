@@ -14,8 +14,8 @@ import { useRouter } from 'next/router';
 
 const menuItems = [
   { icon: <FaTachometerAlt />, label: 'Admin Overview', path: '/dashboard' },
-  { icon: <FaUserFriends />, label: 'Manage Users', path: '/dashboard/users' }, // This links to the users list page (index.js)
-  { icon: <FiUser />, label: 'Users', path: '/dashboard/profile' }, // This links to the Admin's own profile page
+  { icon: <FiUser />, label: 'Users', path: '/dashboard/allusers' },       // Read-only list
+  { icon: <FaUserFriends />, label: 'Manage Users', path: '/dashboard/users' }, // Actions + Details This links to the Admin's own profile page
   { icon: <FaArrowCircleDown />, label: 'Deposit Requests', path: '/dashboard/depositrequest' },
   { icon: <FaArrowCircleUp />, label: 'Withdrawal Requests', path: '/dashboard/withdrawalrequest' },
   { icon: <FaMoneyCheckAlt />, label: 'Transactions', path: '/dashboard/transactions' },
