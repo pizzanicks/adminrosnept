@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import db from '../../lib/firebase'; // Corrected path based on your structure
 import { AnimatePresence } from 'framer-motion';
-import Notification from '../Notification'; // Corrected path assuming Notification.js is in components/
+import Notification from '../Notifications/notifications';
+
 
 /**
  * UserDetailsContent component displays and manages a single user's details.
