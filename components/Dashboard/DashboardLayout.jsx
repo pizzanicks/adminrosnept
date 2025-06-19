@@ -111,7 +111,7 @@ const DashboardLayout = ({ children }) => {
               <div>
                 <div className="text-base font-medium">Administrator</div>
                 <div className="text-sm text-blue-300">
-                  admin@deltaneutral.com
+                  admin@rosnept.com
                 </div>
               </div>
             </div>
@@ -198,7 +198,7 @@ const DashboardLayout = ({ children }) => {
                 <div>
                   <div className="font-semibold">Administrator</div>
                   <div className="text-sm text-gray-500">
-                    admin@deltaneutral.org
+                    admin@rosnept.com
                   </div>
                 </div>
               </div>
