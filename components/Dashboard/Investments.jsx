@@ -31,8 +31,8 @@ const ManageInvestments = () => {
 
   const filteredInvestments = allInvestments.filter((inv) => {
     const matchesSearch =
-      inv.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      inv.plan.toLowerCase().includes(search.toLowerCase());
+      inv?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      inv?.plan?.toLowerCase().includes(search.toLowerCase());
   
     const matchesStatus =
       statusFilter === 'All' ||
