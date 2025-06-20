@@ -12,23 +12,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { cleanedFormData } = req.body;
+    // --- FIX IS HERE: Directly use req.body as the updated plan data ---
+    const updatedPlanData = req.body; // req.body already contains the cleanedFormData
+    // -------------------------------------------------------------------
 
-    if (!cleanedFormData || !cleanedFormData.plan_id) {
-      return res.status(400).json({
-        message: "Missing plan ID or data for update",
-        success: false,
-      });
+    console.log("Received data for plan update:", updatedPlanData);
+
+    // Validate that plan_id (or just id) exists and is not empty
+    if (!updatedPlanData || (!updatedPlanData.plan_id && !updatedPlanData.id)) {
+        return res.status(400).json({
+            message: "Missing plan ID or data for update",
+            success: false,
+        });
     }
 
-    const planDocRef = doc(db, "MANAGE_PLAN", cleanedFormData.plan_id);
+    // Determine the ID to use (prefer plan_id, fall back to id)
+    const planId = updatedPlanData.plan_id || updatedPlanData.id;
 
-    await setDoc(planDocRef, cleanedFormData, { merge: true });
+    // IMPORTANT: Ensure "MANAGE_PLAN" is the correct collection name
+    const planDocRef = doc(db, "MANAGE_PLAN", planId);
+
+    // setDoc with merge:true will update existing fields and add new ones.
+    // If you want to completely overwrite the document, remove { merge: true }.
+    await setDoc(planDocRef, updatedPlanData, { merge: true });
+
+    console.log("Plan updated in Firestore with ID:", planId);
 
     return res.status(200).json({
       message: "Plan updated successfully!",
       success: true,
-      updatedPlanId: cleanedFormData.plan_id,
+      updatedPlanId: planId,
+      data: updatedPlanData, // Return the data that was saved
     });
   } catch (error) {
     console.error("Error updating plan:", error);
