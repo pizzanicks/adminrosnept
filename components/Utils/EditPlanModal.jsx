@@ -1,14 +1,10 @@
 // components/Utils/EditPlanModal.jsx
-'use client'; // Essential for client-side functionality
+'use client';
 
 import React, { useState, useEffect } from "react";
 import PlanFormFields from "./PlansFormField.jsx"; // Assuming PlansFormField.jsx is in the same 'Utils' folder
 import { motion, AnimatePresence } from 'framer-motion';
-// Path to Notification: From components/Utils/EditPlanModal.jsx
-// -> ../ (go up to 'components/' folder)
-// -> Notifications/ (go down into 'Notifications/' folder)
-// -> notifications.jsx (the file itself)
-import Notification from '../Notifications/notifications.jsx'; // <--- THIS PATH MUST BE EXACTLY CORRECT ON YOUR FILE SYSTEM
+import Notification from '../Notifications/notifications.jsx'; // Verify this path and .jsx/.js extension
 
 const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
   // Define an initial empty plan structure for 'Add New Plan' mode
@@ -20,7 +16,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
     roi: "",
     highlights: ["", ""], // Start with a couple of empty highlight fields
     points: [
-      { text: "", enabled: true }, // Start with a couple of empty point fields
+      { text: "", enabled: true }, // Start with a couple of empty point fieldsw
       { text: "", enabled: true },
     ],
     cta: "Get Started",
@@ -31,7 +27,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
     max: 0,
   };
 
-  // Initialize formData with 'plan' if available, otherwise with 'initialEmptyPlan'
+  // Initialize formData with 'plan' if available (edit mode), otherwise with 'initialEmptyPlan' (add mode)
   const [formData, setFormData] = useState(plan || initialEmptyPlan);
 
   // Determine if it's an 'add new plan' mode or 'edit existing plan' mode
@@ -46,9 +42,8 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
     // When the 'plan' prop changes (e.g., modal re-opens for a different plan),
     // update formData. If plan is null, use the initial empty structure.
     setFormData(plan || initialEmptyPlan);
-    setLoading(false); // Ensure loading is false when modal opens/plan changes
-    // Hide notification when modal opens or plan changes
-    setShowNotification(false);
+    setLoading(false); // Ensure loading is false when modal opens or plan changes
+    setShowNotification(false); // Hide notification when modal opens or plan changes
   }, [plan]); // Dependency on 'plan' prop
 
   const handleFormChange = (updatedPlanData) => {
@@ -60,18 +55,21 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
 
     setLoading(true);
 
-    // Filter out empty highlights and points before sending
     const cleanedFormData = {
       ...formData,
       highlights: formData.highlights.filter((h) => h.trim() !== ""),
       points: formData.points.filter((p) => p.text.trim() !== ""),
+      // Ensure 'id' is always included for existing plans, even if the backend expects 'plan_id'
+      id: formData.id || formData.plan_id // Use 'id' from Firestore document
     };
 
     try {
-      // Correct API endpoint based on your file structure:
-      // - /api/plans/addNewPlan for adding (assuming pages/api/plans/addNewPlan.js)
-      // - /api/editPlan for editing (assuming pages/api/editPlan.js)
-      const apiEndpoint = isNewPlanMode ? "/api/plans/addNewPlan" : "/api/editPlan";
+      // --- CRITICAL FIX: Corrected API endpoint for editPlan ---
+      // Now it correctly points to /api/plans/editPlan
+      const apiEndpoint = isNewPlanMode ? "/api/plans/addNewPlan" : "/api/plans/editPlan"; // <--- FIXED THIS LINE!
+
+      console.log(`Submitting to API: ${apiEndpoint} with data:`, cleanedFormData); // Added logging here!
+
       const method = "POST"; // Both addNewPlan and editPlan are POST
 
       const response = await fetch(apiEndpoint, {
@@ -83,7 +81,6 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
       });
 
       if (!response.ok) {
-        // Attempt to parse error response as JSON, fallback to text if not JSON
         const errorData = await response.json().catch(() => ({ message: 'Unknown error or non-JSON response from server.' }));
         console.error(`Error ${isNewPlanMode ? 'adding' : 'editing'} plan:`, response.status, response.statusText, errorData);
         setNotificationType('error');
@@ -110,7 +107,9 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
   };
 
   const handleDelete = async () => {
-    const isConfirmed = window.confirm(`Are you sure you want to permanently delete the plan "${plan.name}"? This action cannot be undone.`);
+    // Ensuring 'plan.plan' is used for the confirmation message if 'name' is not available
+    const planIdentifier = plan?.plan || plan?.name || 'this plan';
+    const isConfirmed = window.confirm(`Are you sure you want to permanently delete ${planIdentifier}? This action cannot be undone.`);
 
     if (!isConfirmed) {
       return;
@@ -119,8 +118,8 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
     setLoading(true);
 
     try {
-      // --- CRITICAL FIX: Correct API path based on your file system: /api/Utilis/deletePlan ---
-      const response = await fetch("/api/Utilis/deletePlan", { // <--- THIS IS THE CONFIRMED PATH
+      // Confirmed API path for deletePlan
+      const response = await fetch("/api/Utilis/deletePlan", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -129,7 +128,6 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
       });
 
       if (!response.ok) {
-        // Attempt to parse error response as JSON, fallback to text if not JSON
         const errorData = await response.json().catch(() => ({ message: 'Unknown error or non-JSON response from server.' }));
         console.error("Error deleting plan:", response.status, response.statusText, errorData);
         setNotificationType('error');
@@ -201,7 +199,7 @@ const EditPlanModal = ({ plan, onSubmit, onClose, onDelete }) => {
           <PlanFormFields
             plan={formData}
             onChange={handleFormChange}
-            isNewPlan={isNewPlanMode}
+            isNewPlan={isNewPlanMode} // Pass isNewPlanMode down to PlanFormFields
             disabled={loading}
           />
 
