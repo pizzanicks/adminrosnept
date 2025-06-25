@@ -1,5 +1,6 @@
 // components/Dashboard/UserDetailsContent.jsx
 import React, { useState, useEffect } from 'react';
+// Changed 'users' to 'USERS' to match your useFirebase context
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import db from '../../lib/firebase'; // Corrected path based on your structure
 import { AnimatePresence } from 'framer-motion';
@@ -46,7 +47,8 @@ export default function UserDetailsContent({ userId }) {
         const fetchUser = async () => {
             setLoading(true); // Start loading state
             try {
-                const userRef = doc(db, 'users', userId); // Reference to the specific user document
+                // Changed 'users' to 'USERS' to match your Firebase collection name in useFirebase
+                const userRef = doc(db, 'USERS', userId); // Reference to the specific user document
                 const userSnap = await getDoc(userRef); // Fetch the document
 
                 if (userSnap.exists()) {
@@ -105,7 +107,7 @@ export default function UserDetailsContent({ userId }) {
         }
 
         setLoading(true); // Start loading state for the action
-        const userRef = doc(db, 'users', userId); // Reference to the user's document
+        const userRef = doc(db, 'USERS', userId); // Reference to the user's document - changed to 'USERS'
         const date = new Date();
         const formattedDate = date.toLocaleString('en-US', { // Format date for display
             timeZone: 'America/New_York',
@@ -160,7 +162,7 @@ export default function UserDetailsContent({ userId }) {
      */
     const toggleUserStatus = async (newStatus) => {
         setLoading(true);
-        const userRef = doc(db, 'users', userId);
+        const userRef = doc(db, 'USERS', userId); // Changed to 'USERS'
         try {
             await updateDoc(userRef, { status: newStatus });
             setStatus(newStatus); // Update local state
@@ -182,7 +184,7 @@ export default function UserDetailsContent({ userId }) {
      */
     const handleAdminNoteSave = async () => {
         setLoading(true);
-        const userRef = doc(db, 'users', userId);
+        const userRef = doc(db, 'USERS', userId); // Changed to 'USERS'
         try {
             await updateDoc(userRef, { adminNote });
             setNotificationType('success');
@@ -204,7 +206,7 @@ export default function UserDetailsContent({ userId }) {
      */
     const handleEarningStatusChange = async (newStatus) => {
         setLoading(true);
-        const userRef = doc(db, 'users', userId);
+        const userRef = doc(db, 'USERS', userId); // Changed to 'USERS'
         try {
             await updateDoc(userRef, { earningStatus: newStatus });
             setEarningStatus(newStatus); // Update local state

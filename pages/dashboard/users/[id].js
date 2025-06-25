@@ -1,3 +1,4 @@
+// pages/dashboard/users/[id].js
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
@@ -15,16 +16,23 @@ export default function UserDetailsPage() {
 
   useEffect(() => {
     const checkUserExists = async () => {
-      if (!id) return;
+      if (!id) {
+        // If ID is not yet available from router, don't try to fetch
+        setIsLoading(true); // Keep loading state until ID is present
+        return;
+      }
 
       try {
-        const userRef = doc(db, 'users', id);
+        // *** CHANGE 'users' to 'USERS' here to match your Firestore collection ***
+        const userRef = doc(db, 'USERS', id);
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
           setUserExists(true);
+          console.log("User document found for ID:", id); // Added log
         } else {
           setUserExists(false);
+          console.warn("User document NOT found for ID:", id); // Added log
         }
       } catch (err) {
         console.error('Error checking user existence:', err);
@@ -35,7 +43,7 @@ export default function UserDetailsPage() {
     };
 
     checkUserExists();
-  }, [id]);
+  }, [id]); // Dependency array to re-run when 'id' changes
 
   return (
     <DashboardLayout>
