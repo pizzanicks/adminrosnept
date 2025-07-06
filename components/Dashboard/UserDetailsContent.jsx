@@ -1,9 +1,13 @@
 // components/Dashboard/UserDetailsContent.jsx
 import React, { useState, useEffect } from 'react';
-// Changed 'users' to 'USERS' to match your useFirebase context
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import db from '../../lib/firebase'; // Corrected path based on your structure
-import { AnimatePresence } from 'framer-motion';
+// IMPORTANT: This 'db' import should be from your CLIENT-SIDE Firebase setup.
+// Ensure you have a file like 'lib/firebaseClient.js' that initializes
+// Firebase using the regular client SDK (firebase/app, firebase/firestore)
+// and exports 'db' (e.g., export { db };).
+// DO NOT use firebase-admin SDK here, as it's a security risk on the frontend.
+import { db } from '../../lib/firebaseClient'; // <--- UPDATED PATH & EXPECTED EXPORT
+import { AnimatePresence } from 'framer-motion'; // <--- ONLY ONE INSTANCE OF THIS IMPORT
 import Notification from '../Notifications/notifications';
 
 
@@ -23,7 +27,7 @@ export default function UserDetailsContent({ userId }) {
     const [amount, setAmount] = useState(''); // For credit/debit amount input
     const [status, setStatus] = useState('active'); // User's account status
     const [walletBalance, setWalletBalance] = useState(0);
-    const [earningStatus, setEarningStatus] = useState('running'); // <--- FIXED THIS LINE
+    const [earningStatus, setEarningStatus] = useState('running');
     const [adminNote, setAdminNote] = useState('');
     const [transactionHistory, setTransactionHistory] = useState([]);
     const [kycDocs, setKycDocs] = useState([]);
