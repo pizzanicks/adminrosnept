@@ -1,9 +1,11 @@
 // components/Dashboard/UserDetailsContent.jsx
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import db from '../../lib/firebase'; // CORRECT PATH AND IMPORT STYLE
-import { AnimatePresence } from 'framer-motion';
-import Notification from '../Notifications/notifications'; // Assuming this path is correct
+import db from '../../lib/firebase';
+// Consolidated the framer-motion import to fix the "defined multiple times" error
+import { AnimatePresence, motion } from 'framer-motion';
+import Notification from '../Notifications/notifications';
+import { FiX } from 'react-icons/fi';
 
 export default function UserDetailsContent({ userId }) {
     const [name, setName] = useState('');
@@ -34,6 +36,13 @@ export default function UserDetailsContent({ userId }) {
     const [showNotification, setShowNotification] = useState(false);
     const [notificationType, setNotificationType] = useState('');
     const [notificationMessage, setNotificationMessage] = useState('');
+    
+    // --- NEW STATE FOR ADMIN MODALS ---
+    const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+    const [isDebitModalOpen, setIsDebitModalOpen] = useState(false);
+    const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
+    const [amountInput, setAmountInput] = useState('');
+    // ------------------------------------
 
     useEffect(() => {
         if (!userId) return;
@@ -230,6 +239,105 @@ export default function UserDetailsContent({ userId }) {
         }
     };
 
+    // --- NEW HANDLER FUNCTIONS FOR ADMIN ACTIONS ---
+    const handleCreditUser = async () => {
+        if (!amountInput) {
+            setNotificationMessage('Please enter a valid amount.');
+            setNotificationType('error');
+            setShowNotification(true);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch('/api/creditUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId, amount: parseFloat(amountInput) }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setNotificationMessage(`Successfully credited ${name}'s account.`);
+                setNotificationType('success');
+            } else {
+                setNotificationMessage(`Failed to credit ${name}'s account.`);
+                setNotificationType('error');
+            }
+        } catch (error) {
+            setNotificationMessage('An error occurred while processing the request.');
+            setNotificationType('error');
+        } finally {
+            setLoading(false);
+            setShowNotification(true);
+            setIsCreditModalOpen(false);
+            setAmountInput('');
+            setTimeout(() => setShowNotification(false), 5000);
+        }
+    };
+
+    const handleDebitUser = async () => {
+        if (!amountInput) {
+            setNotificationMessage('Please enter a valid amount.');
+            setNotificationType('error');
+            setShowNotification(true);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch('/api/debitUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId, amount: parseFloat(amountInput) }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setNotificationMessage(`Successfully debited ${name}'s account.`);
+                setNotificationType('success');
+            } else {
+                setNotificationMessage(`Failed to debit ${name}'s account.`);
+                setNotificationType('error');
+            }
+        } catch (error) {
+            setNotificationMessage('An error occurred while processing the request.');
+            setNotificationType('error');
+        } finally {
+            setLoading(false);
+            setShowNotification(true);
+            setIsDebitModalOpen(false);
+            setAmountInput('');
+            setTimeout(() => setShowNotification(false), 5000);
+        }
+    };
+
+    const handleRestartPlan = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('/api/restartPlan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setNotificationMessage(`Successfully restarted ${name}'s plan.`);
+                setNotificationType('success');
+            } else {
+                setNotificationMessage(`Failed to restart ${name}'s plan.`);
+                setNotificationType('error');
+            }
+        } catch (error) {
+            setNotificationMessage('An error occurred while processing the request.');
+            setNotificationType('error');
+        } finally {
+            setLoading(false);
+            setShowNotification(true);
+            setIsRestartModalOpen(false);
+            setTimeout(() => setShowNotification(false), 5000);
+        }
+    };
+    // ------------------------------------
+
     // Calculations based on the fetched data
     // Ensure these calculations also use nullish coalescing for safety
     const totalRoiEarned = payoutLogs.reduce((sum, log) => sum + (log.amount ?? 0), 0);
@@ -255,6 +363,31 @@ export default function UserDetailsContent({ userId }) {
             </AnimatePresence>
 
             <h2 className="text-xl font-bold">User Investment Summary for {name}</h2>
+            {/* --- NEW ADMIN ACTIONS SECTION --- */}
+            <div className="bg-white rounded-xl shadow p-4">
+                <h3 className="text-lg font-bold text-blue-900 mb-4">Account Actions</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <button
+                        onClick={() => setIsCreditModalOpen(true)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+                    >
+                        Credit Account
+                    </button>
+                    <button
+                        onClick={() => setIsDebitModalOpen(true)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition"
+                    >
+                        Debit Account
+                    </button>
+                    <button
+                        onClick={() => setIsRestartModalOpen(true)}
+                        className="bg-blue-800 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+                    >
+                        Restart Plan
+                    </button>
+                </div>
+            </div>
+            {/* ------------------------------------ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {/* User Details (from USERS doc) */}
                 <div className="bg-white rounded-xl shadow p-4">
@@ -400,6 +533,170 @@ export default function UserDetailsContent({ userId }) {
                     )}
                 </ul>
             </div>
+            
+            {/* --- NEW ADMIN ACTIONS SECTION --- */}
+            <div className="bg-white rounded-xl shadow p-4">
+                <h3 className="text-lg font-bold text-blue-900 mb-4">Account Actions</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <button
+                        onClick={() => setIsCreditModalOpen(true)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+                    >
+                        Credit Account
+                    </button>
+                    <button
+                        onClick={() => setIsDebitModalOpen(true)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition"
+                    >
+                        Debit Account
+                    </button>
+                    <button
+                        onClick={() => setIsRestartModalOpen(true)}
+                        className="bg-blue-800 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+                    >
+                        Restart Plan
+                    </button>
+                </div>
+            </div>
+
+            {/* --- CREDIT MODAL --- */}
+            <AnimatePresence>
+                {isCreditModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/60 px-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-sm p-6 shadow-xl relative rounded-xl"
+                        >
+                            <button
+                                onClick={() => setIsCreditModalOpen(false)}
+                                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                            >
+                                <FiX size={24} />
+                            </button>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Credit User Account</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Enter the amount to credit {name}'s account.
+                            </p>
+                            <input
+                                type="number"
+                                value={amountInput}
+                                onChange={(e) => setAmountInput(e.target.value)}
+                                placeholder="Amount to credit"
+                                className="w-full p-2 border rounded-md mb-4"
+                            />
+                            <button
+                                onClick={handleCreditUser}
+                                className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700"
+                            >
+                                Confirm Credit
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* --- DEBIT MODAL --- */}
+            <AnimatePresence>
+                {isDebitModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/60 px-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-sm p-6 shadow-xl relative rounded-xl"
+                        >
+                            <button
+                                onClick={() => setIsDebitModalOpen(false)}
+                                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                            >
+                                <FiX size={24} />
+                            </button>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Debit User Account</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Enter the amount to debit from {name}'s account.
+                            </p>
+                            <input
+                                type="number"
+                                value={amountInput}
+                                onChange={(e) => setAmountInput(e.target.value)}
+                                placeholder="Amount to debit"
+                                className="w-full p-2 border rounded-md mb-4"
+                            />
+                            <button
+                                onClick={handleDebitUser}
+                                className="w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700"
+                            >
+                                Confirm Debit
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* --- RESTART MODAL --- */}
+            <AnimatePresence>
+                {isRestartModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/60 px-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-sm p-6 shadow-xl relative rounded-xl"
+                        >
+                            <button
+                                onClick={() => setIsRestartModalOpen(false)}
+                                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                            >
+                                <FiX size={24} />
+                            </button>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Restart Investment Plan</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Are you sure you want to restart {name}'s investment plan? This will reset the start date to today.
+                            </p>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setIsRestartModalOpen(false)}
+                                    className="w-full py-2 rounded-md border border-gray-300 text-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleRestartPlan}
+                                    className="w-full bg-blue-800 text-white py-2 rounded-md hover:bg-blue-700"
+                                >
+                                    Confirm Restart
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {showNotification && (
+                <Notification
+                    type={notificationType}
+                    message={notificationMessage}
+                    onClose={() => setShowNotification(false)}
+                    show={true}
+                />
+            )}
         </div>
     );
 }
