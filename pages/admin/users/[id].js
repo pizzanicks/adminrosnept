@@ -1,18 +1,18 @@
 'use client';
 
-// This file should be saved as pages/admin/users/[id].js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { FiX, FiInfo } from 'react-icons/fi';
 import { FaUserCircle } from 'react-icons/fa';
 import { BsCheckCircleFill } from 'react-icons/bs';
 import { motion, AnimatePresence } from 'framer-motion';
-import DetailRow from '@/components/Dashboard/Utils/DetailRow';
-import Notification from '@/components/Notifications/notification';
-import AdminLayout from '@/components/AdminDashboard/AdminLayout'; // Assuming you have an AdminLayout
-import { useFirebase } from '@/lib/firebaseContext';
+// Corrected import paths
+import DetailRow from '../../../components/Dashboard/Utils/DetailRow';
+import Notification from '../../../components/Notifications/notification';
+import AdminLayout from '../../../components/AdminDashboard/AdminLayout';
+import { useFirebase } from '../../../lib/firebaseContext';
 import { doc, getDoc } from 'firebase/firestore';
-import db from '@/lib/firebase'; // Assuming your Firestore instance is exported here
+import db from '../../../lib/firebase';
 
 export default function AdminUserProfile() {
   const router = useRouter();
