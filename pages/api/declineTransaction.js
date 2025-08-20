@@ -13,8 +13,8 @@ export default async function handler(req, res) {
     console.log("Decline data:", selectedReq);
 
     await runTransaction(db, async (transaction) => {
-      // References
-      const depositRef = doc(db, "DEPOSITREQUEST", id);
+      // ✅ FIXED: corrected Firestore path
+      const depositRef = doc(db, "DEPOSITREQUEST", userId, "depositRequests", id);
       const historyRef = doc(db, "HISTORY", userId, "history", id);
       const allHistoryRef = doc(db, "ALLHISTORY", id);
     
