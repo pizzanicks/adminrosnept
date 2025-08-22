@@ -1,53 +1,60 @@
-import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
-import db from "../../lib/firebase";
+import { adminDb, admin } from "@/lib/firebase-admin";
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ message: 'Method not allowed' });
-    }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-    const { userId, amount } = req.body;
+  const { userId, amount } = req.body;
 
-    if (!userId || typeof amount !== 'number' || amount <= 0) {
-        return res.status(400).json({ message: 'Invalid data provided' });
-    }
+  // Validate request
+  if (!userId || !amount || isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'Invalid request parameters' });
+  }
 
-    try {
-        const userRef = doc(db, 'USERS', userId);
-        const userSnap = await getDoc(userRef);
+  const userRef = adminDb.collection('USERS').doc(userId);
 
-        if (!userSnap.exists()) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+  try {
+    await adminDb.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      
+      if (!userDoc.exists) {
+        throw new Error('User not found');
+      }
 
-        const userData = userSnap.data();
-        const currentBalance = userData.walletBalance ?? 0;
-        const newBalance = currentBalance + amount;
+      const userData = userDoc.data();
+      const prevWalletBalance = userData.walletBalance || 0;
+      const prevAccountBalance = userData.accountBalance || 0;
+      
+      // Add to both wallet and account balance
+      const newWalletBalance = prevWalletBalance + amount;
+      const newAccountBalance = prevAccountBalance + amount;
 
-        const date = new Date();
-        const formattedDate = date.toLocaleString('en-US', {
-            timeZone: 'Africa/Lagos',
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+      const transactionEntry = {
+        type: 'Credit',
+        amount: amount,
+        date: new Date().toISOString(),
+        description: 'Admin credit',
+        adminId: 'system' // Optional: track who performed the action
+      };
 
-        await updateDoc(userRef, {
-            walletBalance: newBalance,
-            transactionHistory: arrayUnion({
-                type: 'Credit',
-                amount: amount,
-                date: date.toISOString(),
-                formattedDate: formattedDate,
-                source: 'Admin Credit'
-            })
-        });
+      // Update user document
+      transaction.update(userRef, {
+        walletBalance: newWalletBalance,
+        accountBalance: newAccountBalance,
+        transactionHistory: admin.firestore.FieldValue.arrayUnion(transactionEntry),
+        updatedAt: new Date().toISOString()
+      });
+    });
 
-        return res.status(200).json({ message: 'User credited successfully' });
-    } catch (error) {
-        console.error('Error crediting user:', error);
-        return res.status(500).json({ message: 'Internal server error' });
-    }
+    res.status(200).json({ 
+      success: true, 
+      message: 'User credited successfully' 
+    });
+  } catch (err) {
+    console.error('Credit error:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to credit user' 
+    });
+  }
 }
