@@ -27,13 +27,28 @@ const DepositRequests = () => {
 
   console.log("reeqqq:", allDepositReq);
 
-  useEffect(() => {
-     if (allDepositReq?.length) {
-      setFilteredRequests(allDepositReq);
+useEffect(() => {
+  const fetchDepositsDirectly = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/depositRequests');
+      if (response.ok) {
+        const depositData = await response.json();
+        setFilteredRequests(depositData);
+        setAllDepositReq(depositData); // Also update context if needed
+      }
+    } catch (error) {
+      console.error('Error fetching deposits:', error);
+    } finally {
       setLoading(false);
     }
-  }, [allDepositReq])
-  
+  };
+
+  fetchDepositsDirectly();
+  const interval = setInterval(fetchDepositsDirectly, 3000);
+  return () => clearInterval(interval);
+}, []);
+
 
   const handleSearch = (value) => {
     setSearch(value);
