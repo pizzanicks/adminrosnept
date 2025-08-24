@@ -17,6 +17,9 @@ const DepositRequests = () => {
   const [confirmDeclineAction, setConfirmDeclineAction] = useState(false);
   const {allDepositReq} = useFirebase();
 
+  // console.log("reqsss:", allDepositReq);
+  
+
 
     // NOTIFICATION
     const [showNotification, setShowNotification] = useState(false);
@@ -25,54 +28,41 @@ const DepositRequests = () => {
     const [approving, setApproving] = useState(false);
     const [declining, setDeclining] = useState(false);
 
-  console.log("reeqqq:", allDepositReq);
-
-useEffect(() => {
-  const fetchDepositsDirectly = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/depositRequests');
-      if (response.ok) {
-        const depositData = await response.json();
-        setFilteredRequests(depositData);
-        setAllDepositReq(depositData); // Also update context if needed
-      }
-    } catch (error) {
-      console.error('Error fetching deposits:', error);
-    } finally {
+    useEffect(() => {
+    if (allDepositReq && allDepositReq.length > 0) {
+      setRequests(allDepositReq);
+      setFilteredRequests(allDepositReq); // keep filtered list in sync
+      setLoading(false);
+    } else {
+      setRequests([]);
+      setFilteredRequests([]);
       setLoading(false);
     }
-  };
-
-  fetchDepositsDirectly();
-  const interval = setInterval(fetchDepositsDirectly, 3000);
-  return () => clearInterval(interval);
-}, []);
-
+  }, [allDepositReq]);
 
   const handleSearch = (value) => {
     setSearch(value);
 
-    if (!value) {
-      setFilteredRequests(allDepositReq);
-      return;
-    }
+    const lowerValue = value.toLowerCase().trim();
 
-    const lowerValue = value.toLowerCase();
-    setFilteredRequests(
-      allDepositReq.filter((req) => {
-        const userId = req?.userId?.toLowerCase() || "";
-        const status = req?.status?.toLowerCase() || "";
-        const method = req?.selectedWallet?.method?.toLowerCase() || "";
+    const filtered = allDepositReq.filter((req) => {
+      const userId = req?.userId?.toLowerCase() || "";
+      const status = req?.status?.toLowerCase() || "";
+      const method = req?.selectedWallet?.method?.toLowerCase() || "";
 
-        return (
-          userId.includes(lowerValue) ||
-          status.includes(lowerValue) ||
-          method.includes(lowerValue)
-        );
-      })
-    );
+      // If no search term, return all
+      if (!lowerValue) return true;
+
+      return (
+        userId.includes(lowerValue) ||
+        status.includes(lowerValue) ||
+        method.includes(lowerValue)
+      );
+    });
+
+    setFilteredRequests(filtered);
   };
+
 
   console.log("data:", filteredRequests)
 
