@@ -1,148 +1,127 @@
 // pages/api/cron/daily-roi.js
-import admin from 'firebase-admin';
-import dayjs from 'dayjs';
 
+import admin from 'firebase-admin';
+
+// --- Initialize Firebase Admin SDK ---
 if (!admin.apps.length) {
   if (process.env.SERVICE_ACCOUNT_KEY) {
     const serviceAccount = JSON.parse(process.env.SERVICE_ACCOUNT_KEY);
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+      credential: admin.credential.cert(serviceAccount),
     });
-    console.log('Firebase Admin SDK Initialized successfully.');
+    console.log('Firebase Admin SDK initialized using SERVICE_ACCOUNT_KEY.');
   } else {
-    console.warn('SERVICE_ACCOUNT_KEY not found. Initializing default Firebase app.');
+    console.warn('SERVICE_ACCOUNT_KEY not found, using default credentials.');
     admin.initializeApp();
   }
 }
 
 const db = admin.firestore();
 
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  console.log(`\n--- [${new Date().toISOString()}] Daily ROI API Triggered ---`);
-
+// --- ROI Processing Function ---
+async function processDailyROI() {
   try {
-    // Fetch all investment plans
-    const plansSnapshot = await db.collection('investmentPlans').get();
-    if (plansSnapshot.empty) {
-      return res.status(500).json({ error: 'No investment plans found.' });
-    }
-
-    const investmentPlans = {};
-    plansSnapshot.forEach(doc => {
-      investmentPlans[doc.id] = doc.data();
+    // 1. Fetch all investment plans
+    const planSnapshot = await db.collection('investmentPlans').get();
+    const plans = {};
+    planSnapshot.docs.forEach(doc => {
+      plans[doc.id] = doc.data();
     });
 
-    // Fetch active users
-    const usersSnapshot = await db.collection('users')
+    if (!Object.keys(plans).length) {
+      console.log('No investment plans found.');
+      return [];
+    }
+
+    // 2. Fetch active users
+    const userSnapshot = await db
+      .collection('users')
       .where('earningStatus', '==', 'active')
       .get();
 
-    if (usersSnapshot.empty) {
-      return res.status(200).json({ message: 'No active users to process.' });
+    if (userSnapshot.empty) {
+      console.log('No active users to process.');
+      return [];
     }
 
     const batch = db.batch();
-    let usersProcessed = 0;
-    let usersSkipped = 0;
+    const userProgressSummary = [];
 
-    console.log(`Found ${usersSnapshot.docs.length} active users. Processing...`);
+    for (const doc of userSnapshot.docs) {
+      const user = doc.data();
+      const userRef = db.collection('users').doc(doc.id);
 
-    for (const doc of usersSnapshot.docs) {
-      const userData = doc.data();
-      const userRef = doc.ref;
+      const planId = user.investmentPlanId;
+      const plan = plans[planId];
+      const initialInvestment = user.initialInvestmentAmount || 0;
 
-      const initialInvestmentAmount = userData.initialInvestmentAmount || 0;
-      const investmentPlanId = userData.investmentPlanId;
-      let currentROI = userData.currentROI || 0;
-      let roiIncreaseDayCount = userData.roiIncreaseDayCount || 0;
-      const lastROIUpdateTimestamp = userData.lastROIUpdateDate;
-      const roiStartDateTimestamp = userData.roiStartDate;
+      if (!plan || typeof plan.dailyROI !== 'number' || initialInvestment <= 0) continue;
 
-      // Validation
-      if (initialInvestmentAmount <= 0) {
-        console.log(`  User ${doc.id}: initial investment <= 0. Skipping.`);
-        usersSkipped++;
-        continue;
-      }
-      if (!investmentPlanId) {
-        console.log(`  User ${doc.id}: missing investmentPlanId. Skipping.`);
-        usersSkipped++;
-        continue;
-      }
+      let currentROI = user.currentROI || 0;
+      let roiDayCount = user.roiIncreaseDayCount || 0;
 
-      const plan = investmentPlans[investmentPlanId];
-      if (!plan || typeof plan.dailyROI !== 'number') {
-        console.warn(`  User ${doc.id}: plan not found or dailyROI invalid. Skipping.`);
-        usersSkipped++;
-        continue;
-      }
-
-      const DAILY_ROI = plan.dailyROI;
-      const MAX_ROI_DAYS = 7;
-
-      const lastROIUpdateDate = lastROIUpdateTimestamp ? lastROIUpdateTimestamp.toDate() : null;
-      const roiStartDate = roiStartDateTimestamp ? roiStartDateTimestamp.toDate() : null;
-
-      const now = new Date();
-      const lastUpdateCheckDate = lastROIUpdateDate || roiStartDate;
-
-      if (!lastUpdateCheckDate) {
-        console.log(`  User ${doc.id}: Missing lastROIUpdateDate or roiStartDate. Skipping.`);
-        usersSkipped++;
-        continue;
-      }
-
-      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-      if (now.getTime() - lastUpdateCheckDate.getTime() < ONE_DAY_MS - (5 * 60 * 1000)) {
-        console.log(`  User ${doc.id}: Less than 24h since last update. Skipping.`);
-        usersSkipped++;
-        continue;
-      }
-
-      if (roiIncreaseDayCount >= MAX_ROI_DAYS) {
-        if (userData.earningStatus !== 'completed') {
+      // Skip if 7 days already completed
+      if (roiDayCount >= 7) {
+        if (user.earningStatus !== 'completed') {
           batch.update(userRef, { earningStatus: 'completed' });
-          usersProcessed++;
         }
+        userProgressSummary.push({
+          userId: doc.id,
+          planId,
+          day: roiDayCount,
+          roiPercentage: currentROI,
+          status: 'completed',
+        });
         continue;
       }
 
-      // ROI Calculation
-      currentROI += DAILY_ROI;
-      roiIncreaseDayCount++;
-      const maxCumulativeROI = MAX_ROI_DAYS * DAILY_ROI;
-      if (currentROI > maxCumulativeROI) currentROI = maxCumulativeROI;
+      // --- Calculate new ROI for today ---
+      const newDayCount = roiDayCount + 1;
+      const newROI = currentROI + plan.dailyROI;
+      const maxROI = 7 * plan.dailyROI;
+      const cappedROI = newROI > maxROI ? maxROI : newROI;
+      const roiValue = initialInvestment * (cappedROI / 100);
 
-      const newROIValue = initialInvestmentAmount * (currentROI / 100);
-
+      // Prepare batch update
       const updateData = {
-        currentROI: parseFloat(currentROI.toFixed(2)),
-        currentROIValue: parseFloat(newROIValue.toFixed(2)),
-        roiIncreaseDayCount,
-        lastROIUpdateDate: now,
+        roiIncreaseDayCount: newDayCount,
+        currentROI: parseFloat(cappedROI.toFixed(2)),
+        currentROIValue: parseFloat(roiValue.toFixed(2)),
+        lastROIUpdateDate: new Date(),
       };
 
-      if (roiIncreaseDayCount >= MAX_ROI_DAYS) {
-        updateData.earningStatus = 'completed';
-        console.log(`  User ${doc.id}: 7-day cycle complete. Marked completed.`);
-      }
+      if (newDayCount >= 7) updateData.earningStatus = 'completed';
 
       batch.update(userRef, updateData);
-      usersProcessed++;
-      console.log(`  User ${doc.id}: ROI updated. Day ${roiIncreaseDayCount}/${MAX_ROI_DAYS}, Plan: ${investmentPlanId}, Daily ROI: ${DAILY_ROI}%, Total ROI: ${currentROI.toFixed(2)}%, Value: $${newROIValue.toFixed(2)}.`);
+
+      userProgressSummary.push({
+        userId: doc.id,
+        planId,
+        day: newDayCount,
+        roiPercentage: parseFloat(cappedROI.toFixed(2)),
+        roiValue: parseFloat(roiValue.toFixed(2)),
+        status: newDayCount >= 7 ? 'completed' : 'active',
+      });
     }
 
-    if (usersProcessed > 0) await batch.commit();
+    // Commit batch updates
+    if (userProgressSummary.length) {
+      await batch.commit();
+    }
 
-    console.log(`\n--- Daily ROI API finished. Processed ${usersProcessed} users, skipped ${usersSkipped}. ---`);
-    res.status(200).json({ message: `Processed ${usersProcessed} users, skipped ${usersSkipped}.` });
-
+    console.log('Daily ROI processed successfully:', userProgressSummary);
+    return userProgressSummary;
   } catch (error) {
-    console.error('CRITICAL ERROR in ROI API:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error in daily ROI processing:', error);
+    return [];
   }
+}
+
+// --- API Endpoint ---
+export default async function handler(req, res) {
+  const summary = await processDailyROI();
+  res.status(200).json({
+    message: 'Daily ROI processed successfully.',
+    users: summary,
+  });
 }
