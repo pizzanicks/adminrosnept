@@ -129,12 +129,12 @@ const ManageInvestments = () => {
             className="bg-white border transition rounded p-5 space-y-3"
           >
             <div className="flex items-center gap-3 mb-4">
-              {iconMap[inv.activePlan] || (
+              {iconMap[inv.activePlan?.planName] || (
                 <FaUserAltSlash className="text-gray-400 text-2xl" />
               )}
               <div>
                 <h2 className="text-base font-semibold text-gray-800">{inv.fullName}</h2>
-                <p className="text-sm text-gray-500">{inv.activePlan || 'N/A'}</p>
+                <p className="text-sm text-gray-500">{inv.activePlan?.planName || 'N/A'}</p>
               </div>
             </div>
             <div className='w-full flex justify-between items-center'>
@@ -198,7 +198,7 @@ const ManageInvestments = () => {
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
               <div className="relative">
-                {iconMap[selectedInv?.activePlan] ?? (
+                {iconMap[selectedInv?.activePlan?.planName] ?? (
                   <FaUserAltSlash className="text-gray-300 text-3xl" />
                 )}
               </div>
@@ -212,7 +212,10 @@ const ManageInvestments = () => {
 
             {/* Details */}
             <div className="space-y-3">
-              <DetailRow label="Plan" value={selectedInv.activePlan || 'No plan assigned'} />
+              <DetailRow 
+                label="Plan" 
+                value={selectedInv.activePlan?.planName || 'No plan assigned'} 
+              />
               <DetailRow
                 label="Locked Balance"
                 value={
@@ -283,7 +286,7 @@ const ManageInvestments = () => {
             </div>
 
             <button
-              className="w-full flex justify-center items-center bg-blue-800 text-white text-sm py-2 rounded hover:bg-grblueeen-700"
+              className="w-full flex justify-center items-center bg-blue-800 text-white text-sm py-2 rounded hover:bg-blue-700"
               onClick={(e) => payOut(e)}
               disabled={processing}
             >
