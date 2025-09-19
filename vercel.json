@@ -1,12 +1,12 @@
 {
   "functions": {
-    "api/cron/daily-roi-322jadsfdfde3333jdhff.js": {
+    "api/cron/daily-roi-322jadsfdfde3333jdhff": {
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/cron/daily-roi-322jadsfdfde3333jdhff",
+      "path": "/api/cron/daily-roi-322jadsfdfde3333jdhff?secret=mySuperSecretKey123",
       "schedule": "1 23 * * *"
     }
   ]

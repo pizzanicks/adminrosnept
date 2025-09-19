@@ -3,8 +3,10 @@ import { adminDb, admin } from '@/lib/firebase-admin';
 
 export default async function handler(req, res) {
   try {
-    // Simple security check
-    if (!req.url.includes('daily-roi-322jadsfdfde3333jdhff')) {
+    // ✅ Secret key check for security
+    const cronSecret = process.env.CRON_SECRET;
+    if (req.query.secret !== cronSecret) {
+      console.log("❌ Unauthorized request.");
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
@@ -12,6 +14,7 @@ export default async function handler(req, res) {
 
     const plansSnapshot = await adminDb.collection('PLANS').get();
     if (plansSnapshot.empty) {
+      console.log("⚠️ No plans found.");
       return res.status(200).json({ message: "No plans found", users: [] });
     }
 
@@ -20,7 +23,7 @@ export default async function handler(req, res) {
 
     for (const planDoc of plansSnapshot.docs) {
       const planData = planDoc.data();
-      const durationDays = planData.durationDays || 7; // default to 7 days
+      const durationDays = planData.durationDays || 7; // default 7 days
 
       const usersSnapshot = await adminDb
         .collection('USERS')
@@ -34,20 +37,18 @@ export default async function handler(req, res) {
         const userId = userDoc.id;
 
         // Skip if no investment or plan already stopped
-        if (!userData.investmentAmount || userData.roiActive === false) {
-          continue;
-        }
+        if (!userData.investmentAmount || userData.roiActive === false) continue;
 
         const daysCompleted = userData.roiDaysCompleted || 0;
 
-        // Stop ROI if cycle is already completed
+        // Auto-stop ROI if cycle completed
         if (daysCompleted >= durationDays) {
-          batch.update(userDoc.ref, { roiActive: false });
+          batch.update(userDoc.ref, { roiActive: false, earningStatus: 'completed' });
           console.log(`⏹️ ROI stopped for user ${userId} (completed ${daysCompleted} days)`);
           continue;
         }
 
-        // Calculate ROI
+        // Calculate ROI using currentPlanROIPercentage
         const roiPercent = userData.currentPlanROIPercentage || planData.roiPercent || 0;
         const roi = (roiPercent / 100) * (userData.investmentAmount || 0);
         const newBalance = (userData.walletBalance || 0) + roi;
@@ -57,7 +58,8 @@ export default async function handler(req, res) {
           walletBalance: newBalance,
           lastROIPayout: admin.firestore.FieldValue.serverTimestamp(),
           roiDaysCompleted: daysCompleted + 1,
-          roiActive: daysCompleted + 1 < durationDays, // stays active until last day
+          roiActive: daysCompleted + 1 < durationDays,
+          earningStatus: daysCompleted + 1 < durationDays ? 'running' : 'completed',
         });
 
         // Log ROI payout
