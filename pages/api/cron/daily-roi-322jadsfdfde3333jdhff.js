@@ -1,6 +1,5 @@
 // pages/api/cron/daily-roi.js
-
-import admin from 'firebase-admin';
+import admin from "firebase-admin";
 
 // --- Initialize Firebase Admin SDK ---
 if (!admin.apps.length) {
@@ -9,9 +8,9 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
-    console.log('Firebase Admin SDK initialized using SERVICE_ACCOUNT_KEY.');
+    console.log("Firebase Admin SDK initialized using SERVICE_ACCOUNT_KEY.");
   } else {
-    console.warn('SERVICE_ACCOUNT_KEY not found, using default credentials.');
+    console.warn("SERVICE_ACCOUNT_KEY not found, using default credentials.");
     admin.initializeApp();
   }
 }
@@ -22,25 +21,25 @@ const db = admin.firestore();
 async function processDailyROI() {
   try {
     // 1. Fetch all investment plans
-    const planSnapshot = await db.collection('investmentPlans').get();
+    const planSnapshot = await db.collection("investmentPlans").get();
     const plans = {};
-    planSnapshot.docs.forEach(doc => {
+    planSnapshot.docs.forEach((doc) => {
       plans[doc.id] = doc.data();
     });
 
     if (!Object.keys(plans).length) {
-      console.log('No investment plans found.');
+      console.log("No investment plans found.");
       return [];
     }
 
     // 2. Fetch active users
     const userSnapshot = await db
-      .collection('users')
-      .where('earningStatus', '==', 'active')
+      .collection("users")
+      .where("earningStatus", "==", "active")
       .get();
 
     if (userSnapshot.empty) {
-      console.log('No active users to process.');
+      console.log("No active users to process.");
       return [];
     }
 
@@ -49,28 +48,28 @@ async function processDailyROI() {
 
     for (const doc of userSnapshot.docs) {
       const user = doc.data();
-      const userRef = db.collection('users').doc(doc.id);
+      const userRef = db.collection("users").doc(doc.id);
 
       const planId = user.investmentPlanId;
       const plan = plans[planId];
       const initialInvestment = user.initialInvestmentAmount || 0;
 
-      if (!plan || typeof plan.dailyROI !== 'number' || initialInvestment <= 0) continue;
+      if (!plan || typeof plan.dailyROI !== "number" || initialInvestment <= 0) continue;
 
       let currentROI = user.currentROI || 0;
       let roiDayCount = user.roiIncreaseDayCount || 0;
 
       // Skip if 7 days already completed
       if (roiDayCount >= 7) {
-        if (user.earningStatus !== 'completed') {
-          batch.update(userRef, { earningStatus: 'completed' });
+        if (user.earningStatus !== "completed") {
+          batch.update(userRef, { earningStatus: "completed" });
         }
         userProgressSummary.push({
           userId: doc.id,
           planId,
           day: roiDayCount,
           roiPercentage: currentROI,
-          status: 'completed',
+          status: "completed",
         });
         continue;
       }
@@ -90,7 +89,7 @@ async function processDailyROI() {
         lastROIUpdateDate: new Date(),
       };
 
-      if (newDayCount >= 7) updateData.earningStatus = 'completed';
+      if (newDayCount >= 7) updateData.earningStatus = "completed";
 
       batch.update(userRef, updateData);
 
@@ -100,7 +99,7 @@ async function processDailyROI() {
         day: newDayCount,
         roiPercentage: parseFloat(cappedROI.toFixed(2)),
         roiValue: parseFloat(roiValue.toFixed(2)),
-        status: newDayCount >= 7 ? 'completed' : 'active',
+        status: newDayCount >= 7 ? "completed" : "active",
       });
     }
 
@@ -109,19 +108,26 @@ async function processDailyROI() {
       await batch.commit();
     }
 
-    console.log('Daily ROI processed successfully:', userProgressSummary);
+    console.log("Daily ROI processed successfully:", userProgressSummary);
     return userProgressSummary;
   } catch (error) {
-    console.error('Error in daily ROI processing:', error);
+    console.error("Error in daily ROI processing:", error);
     return [];
   }
 }
 
 // --- API Endpoint ---
 export default async function handler(req, res) {
+  const authHeader = req.headers.authorization;
+  const expected = `Bearer ${process.env.CRON_SECRET}`;
+
+  if (authHeader !== expected) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
   const summary = await processDailyROI();
   res.status(200).json({
-    message: 'Daily ROI processed successfully.',
+    message: "Daily ROI processed successfully.",
     users: summary,
   });
 }

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-roi-322jadsfdfde3333jdhff",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
