@@ -6,8 +6,8 @@
   },
   "crons": [
     {
-      "path": "/api/cron/daily-roi-322jadsfdfde3333jdhff?secret=mySuperSecretKey123",
-      "schedule": "1 23 * * *"
+      "path": "/api/cron/daily-roi-322jadsfdfde3333jdhff?secret=CRON_SECRET",
+      "schedule": "1 0 * * *"
     }
   ]
 }
