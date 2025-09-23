@@ -1,91 +1,143 @@
-import { adminDb, admin } from '@/lib/firebase-admin';
+// pages/api/cron/daily-roi.js
+import { adminDb, admin } from "../../../lib/firebase-admin";
 
 export default async function handler(req, res) {
   try {
-    // ✅ Security check via query secret
-    const requestSecret = req.query.secret;
-    if (!requestSecret || requestSecret !== process.env.CRON_SECRET) {
+    console.log("🔐 Daily ROI cron started...");
+
+    // --- Security check ---
+    const vercelHeader = req.headers["x-vercel-cron"] || req.headers["vercel-cron"];
+    const isVercelCron = typeof vercelHeader === "string" && ["1", "true"].includes(vercelHeader.toLowerCase());
+    const requestSecret = req.query?.secret || req.headers["x-cron-secret"];
+    const isLocal = process.env.NODE_ENV === "development";
+
+    if (!(isVercelCron || (requestSecret && requestSecret === process.env.CRON_SECRET) || isLocal)) {
       console.log("❌ Unauthorized request.");
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    console.log("🔐 Authorized request. Starting Daily ROI Processing...");
+    // --- Fetch all investments with active plans ---
+    const investmentsSnap = await adminDb.collection("INVESTMENT").where("hasActivePlan", "==", true).get();
+    console.log(`👥 Total active investments found: ${investmentsSnap.size}`);
 
-    const plansSnapshot = await adminDb.collection('PLANS').get();
-    if (plansSnapshot.empty) {
-      return res.status(200).json({ message: "No plans found", users: [] });
+    if (investmentsSnap.empty) {
+      return res.status(200).json({ message: "No active investments found", usersUpdated: 0 });
     }
 
-    let updatedUsers = [];
     const batch = adminDb.batch();
+    const updatedUsers = [];
+    const skippedUsers = [];
 
-    for (const planDoc of plansSnapshot.docs) {
-      const planData = planDoc.data();
-      const durationDays = planData.durationDays || 7;
+    for (const investmentDoc of investmentsSnap.docs) {
+      const userId = investmentDoc.id;
+      const investmentData = investmentDoc.data();
 
-      const usersSnapshot = await adminDb
-        .collection('USERS')
-        .where('planId', '==', planDoc.id)
-        .get();
-
-      if (usersSnapshot.empty) continue;
-
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const userId = userDoc.id;
-
-        if (!userData.investmentAmount || userData.roiActive === false) continue;
-
-        const daysCompleted = userData.roiDaysCompleted || 0;
-
-        // Auto-stop plan if duration completed
-        if (daysCompleted >= durationDays) {
-          batch.update(userDoc.ref, { roiActive: false });
-          console.log(`⏹️ ROI stopped for user ${userId}`);
-          continue;
-        }
-
-        const roiPercent = userData.currentPlanROIPercentage || planData.roiPercent || 0;
-        const roi = (roiPercent / 100) * (userData.investmentAmount || 0);
-        const newBalance = (userData.walletBalance || 0) + roi;
-
-        batch.update(userDoc.ref, {
-          walletBalance: newBalance,
-          lastROIPayout: admin.firestore.FieldValue.serverTimestamp(),
-          roiDaysCompleted: daysCompleted + 1,
-          roiActive: daysCompleted + 1 < durationDays,
-        });
-
-        const logRef = userDoc.ref.collection('roiLogs').doc();
-        batch.set(logRef, {
-          amount: roi,
-          roiPercent,
-          planId: planDoc.id,
-          dayNumber: daysCompleted + 1,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        updatedUsers.push({
-          userId,
-          oldBalance: userData.walletBalance || 0,
-          roi,
-          newBalance,
-          day: daysCompleted + 1,
-          active: daysCompleted + 1 < durationDays,
-        });
+      // ✅ Check if active plan exists and is valid
+      if (!investmentData.activePlan || !investmentData.activePlan.isActive) {
+        skippedUsers.push(userId);
+        continue;
       }
+
+      const activePlan = investmentData.activePlan;
+      const daysCompleted = activePlan.daysCompleted || 0;
+      const duration = activePlan.durationDays || 7;
+
+      // ⏸️ Skip paused plans
+      if (activePlan.status === 'paused') {
+        console.log(`⏸️ Skipping paused plan for ${userId}`);
+        skippedUsers.push(userId);
+        continue;
+      }
+
+      // ⏹️ Stop investment if already finished
+      if (daysCompleted >= duration) {
+        batch.update(investmentDoc.ref, {
+          "activePlan.isActive": false,
+          "activePlan.status": "completed",
+          hasActivePlan: false,
+          // Return locked balance to wallet
+          walletBal: (investmentData.walletBal || 0) + (investmentData.lockedBal || 0),
+          lockedBal: 0,
+          planCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`🏁 Plan completed for ${userId} after ${duration} days`);
+        skippedUsers.push(userId);
+        continue;
+      }
+
+      // 💰 Calculate ROI based on plan's specific ROI percentage
+      const roiPercent = activePlan.roiPercent || 0.04;
+      const investmentAmount = activePlan.amount || investmentData.lockedBal || 0;
+      const roi = roiPercent * investmentAmount;
+      
+      const newWalletBalance = (investmentData.walletBal || 0) + roi;
+
+      // ✅ Update investment data
+      batch.update(investmentDoc.ref, {
+        walletBal: newWalletBalance,
+        totalEarned: (investmentData.totalEarned || 0) + roi,
+        "activePlan.daysCompleted": daysCompleted + 1,
+        "activePlan.isActive": daysCompleted + 1 < duration,
+        "activePlan.status": daysCompleted + 1 < duration ? "active" : "completed",
+        hasActivePlan: daysCompleted + 1 < duration,
+        lastRoiPaidAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // 📑 Log ROI payout under subcollection
+      const logRef = investmentDoc.ref.collection("roiLogs").doc();
+      batch.set(logRef, {
+        amount: roi,
+        roiPercent: roiPercent * 100, // Store as percentage for display
+        planName: activePlan.planName,
+        dayNumber: daysCompleted + 1,
+        totalDays: duration,
+        investmentAmount: investmentAmount,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      updatedUsers.push({
+        userId,
+        roi,
+        newBalance: newWalletBalance,
+        day: daysCompleted + 1,
+        totalDays: duration,
+        planName: activePlan.planName,
+        roiPercentage: roiPercent * 100
+      });
+
+      console.log(`✅ ROI credited for ${userId}: +${roi} (${roiPercent * 100}% of ${investmentAmount}) - Day ${daysCompleted + 1}/${duration}`);
     }
 
-    await batch.commit();
+    // --- Commit updates ---
+    if (updatedUsers.length > 0) {
+      await batch.commit();
+      console.log(`📦 Batch committed. Users updated: ${updatedUsers.length}`);
+    } else {
+      console.log("⚠️ No users updated in this run.");
+    }
 
-    console.log("🎉 Daily ROI processing complete.");
-    return res.status(200).json({
-      message: "Daily ROI processed successfully ✅",
-      users: updatedUsers,
+    // --- Save cron log ---
+    await adminDb.collection("CRON_LOGS").add({
+      executedAt: admin.firestore.FieldValue.serverTimestamp(),
+      message: "Daily ROI processed",
+      usersUpdated: updatedUsers.length,
+      skippedUsers: skippedUsers.length,
     });
 
-  } catch (error) {
-    console.error("❌ Error processing Daily ROI:", error);
-    return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    return res.status(200).json({
+      message: "Daily ROI processed successfully",
+      usersUpdated: updatedUsers.length,
+      updatedUsers,
+      skippedUsers,
+    });
+  } catch (err) {
+    console.error("❌ Error in cron:", err);
+    await adminDb.collection("CRON_LOGS").add({
+      executedAt: admin.firestore.FieldValue.serverTimestamp(),
+      message: "Error processing daily ROI",
+      error: err.message || String(err),
+    });
+    return res.status(500).json({ message: "Internal Server Error", error: err.message || String(err) });
   }
 }
