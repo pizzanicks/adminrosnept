@@ -1,4 +1,3 @@
-// pages/api/cron/daily-roi.js
 import { adminDb, admin } from "../../../lib/firebase-admin";
 
 export default async function handler(req, res) {
@@ -8,10 +7,9 @@ export default async function handler(req, res) {
     // --- Security check ---
     const vercelHeader = req.headers["x-vercel-cron"] || req.headers["vercel-cron"];
     const isVercelCron = typeof vercelHeader === "string" && ["1", "true"].includes(vercelHeader.toLowerCase());
-    const requestSecret = req.query?.secret || req.headers["x-cron-secret"];
     const isLocal = process.env.NODE_ENV === "development";
 
-    if (!(isVercelCron || (requestSecret && requestSecret === process.env.CRON_SECRET) || isLocal)) {
+    if (!(isVercelCron || isLocal)) {
       console.log("❌ Unauthorized request.");
       return res.status(401).json({ message: "Unauthorized" });
     }

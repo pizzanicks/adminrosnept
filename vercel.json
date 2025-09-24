@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/cron/daily-roi-322jadsfdfde3333jdhff": {
+    "api/cron/daily-roi-322jadsfdfde3333jdhff.js": {
       "maxDuration": 60
     }
   },
