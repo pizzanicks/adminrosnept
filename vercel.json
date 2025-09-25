@@ -1,12 +1,12 @@
 {
   "functions": {
-    "api/cron/daily-roi.js": {
+    "/api/daily-roi.js": {
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/cron/daily-roi",
+      "path": "/api/daily-roi",
       "schedule": "1 23 * * *"
     }
   ]
