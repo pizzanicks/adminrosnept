@@ -1,6 +1,6 @@
 {
   "functions": {
-    "/api/daily-roi.js": {
+    "api/daily-roi.js": {
       "maxDuration": 60
     }
   },
