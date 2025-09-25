@@ -1,4 +1,4 @@
-import { adminDb, admin } from "../../../lib/firebase-admin";
+import { adminDb, admin } from "../../lib/firebase-admin"; // Path updated to reflect new file location
 
 export default async function handler(req, res) {
   try {
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
         roiPercentage: roiPercent * 100
       });
 
-      console.log(`✅ ROI credited for ${userId}: +${roi} (${roiPercent * 100}% of ${investmentAmount}) - Day ${daysCompleted + 1}/${duration}`);
+      console.log(`✅ ROI credited for ${userId}: +$${roi} (${roiPercent * 100}% of $${investmentAmount}) - Day ${daysCompleted + 1}/${duration}`);
     }
 
     // --- Commit updates ---

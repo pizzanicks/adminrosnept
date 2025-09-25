@@ -6,7 +6,7 @@
   },
   "crons": [
     {
-      "path": "/api/cron/daily-roi-322jadsfdfde3333jdhff",
+      "path": "/api/cron/daily-roi",
       "schedule": "1 23 * * *"
     }
   ]
