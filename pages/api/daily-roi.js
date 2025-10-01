@@ -1,10 +1,18 @@
-import { adminDb, admin } from "../../lib/firebase-admin"; // Path updated to reflect new file location
+// pages/api/cron/daily-roi.js
+import { adminDb, admin } from "../../lib/firebase-admin"; // Make sure path is correct
 
 export default async function handler(req, res) {
   try {
     console.log("🔐 Daily ROI cron started...");
 
-    // --- Security check ---
+    // --- Verify Firebase Admin is initialized ---
+    if (!admin.apps || !admin.apps.length) {
+      throw new Error("Firebase Admin is not initialized. Check Base64 key setup.");
+    } else {
+      console.log("✅ Firebase Admin is initialized (Base64 mode).");
+    }
+
+    // --- Security check (Vercel Cron or Local Dev only) ---
     const vercelHeader = req.headers["x-vercel-cron"] || req.headers["vercel-cron"];
     const isVercelCron = typeof vercelHeader === "string" && ["1", "true"].includes(vercelHeader.toLowerCase());
     const isLocal = process.env.NODE_ENV === "development";
@@ -14,7 +22,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // --- Fetch all investments with active plans ---
+    // --- Fetch all active investments ---
     const investmentsSnap = await adminDb.collection("INVESTMENT").where("hasActivePlan", "==", true).get();
     console.log(`👥 Total active investments found: ${investmentsSnap.size}`);
 
@@ -30,7 +38,6 @@ export default async function handler(req, res) {
       const userId = investmentDoc.id;
       const investmentData = investmentDoc.data();
 
-      // ✅ Check if active plan exists and is valid
       if (!investmentData.activePlan || !investmentData.activePlan.isActive) {
         skippedUsers.push(userId);
         continue;
@@ -40,37 +47,34 @@ export default async function handler(req, res) {
       const daysCompleted = activePlan.daysCompleted || 0;
       const duration = activePlan.durationDays || 7;
 
-      // ⏸️ Skip paused plans
-      if (activePlan.status === 'paused') {
+      // Skip paused
+      if (activePlan.status === "paused") {
         console.log(`⏸️ Skipping paused plan for ${userId}`);
         skippedUsers.push(userId);
         continue;
       }
 
-      // ⏹️ Stop investment if already finished
+      // Completed plans
       if (daysCompleted >= duration) {
         batch.update(investmentDoc.ref, {
           "activePlan.isActive": false,
           "activePlan.status": "completed",
           hasActivePlan: false,
-          // Return locked balance to wallet
           walletBal: (investmentData.walletBal || 0) + (investmentData.lockedBal || 0),
           lockedBal: 0,
-          planCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+          planCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         console.log(`🏁 Plan completed for ${userId} after ${duration} days`);
         skippedUsers.push(userId);
         continue;
       }
 
-      // 💰 Calculate ROI based on plan's specific ROI percentage
+      // ROI calculation
       const roiPercent = activePlan.roiPercent || 0.04;
       const investmentAmount = activePlan.amount || investmentData.lockedBal || 0;
       const roi = roiPercent * investmentAmount;
-      
       const newWalletBalance = (investmentData.walletBal || 0) + roi;
 
-      // ✅ Update investment data
       batch.update(investmentDoc.ref, {
         walletBal: newWalletBalance,
         totalEarned: (investmentData.totalEarned || 0) + roi,
@@ -82,11 +86,11 @@ export default async function handler(req, res) {
         updatedAt: new Date().toISOString(),
       });
 
-      // 📑 Log ROI payout under subcollection
+      // Log ROI
       const logRef = investmentDoc.ref.collection("roiLogs").doc();
       batch.set(logRef, {
         amount: roi,
-        roiPercent: roiPercent * 100, // Store as percentage for display
+        roiPercent: roiPercent * 100,
         planName: activePlan.planName,
         dayNumber: daysCompleted + 1,
         totalDays: duration,
@@ -101,13 +105,12 @@ export default async function handler(req, res) {
         day: daysCompleted + 1,
         totalDays: duration,
         planName: activePlan.planName,
-        roiPercentage: roiPercent * 100
+        roiPercentage: roiPercent * 100,
       });
 
       console.log(`✅ ROI credited for ${userId}: +$${roi} (${roiPercent * 100}% of $${investmentAmount}) - Day ${daysCompleted + 1}/${duration}`);
     }
 
-    // --- Commit updates ---
     if (updatedUsers.length > 0) {
       await batch.commit();
       console.log(`📦 Batch committed. Users updated: ${updatedUsers.length}`);
@@ -115,7 +118,6 @@ export default async function handler(req, res) {
       console.log("⚠️ No users updated in this run.");
     }
 
-    // --- Save cron log ---
     await adminDb.collection("CRON_LOGS").add({
       executedAt: admin.firestore.FieldValue.serverTimestamp(),
       message: "Daily ROI processed",
